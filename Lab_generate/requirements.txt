@@ -1,0 +1,17 @@
+# Lab Generation Requirements
+# Compatible with lab_tutor dependencies
+
+# Core dependencies
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-core>=0.1.0
+
+# Data models
+pydantic>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Optional: For enhanced functionality
+openai>=1.0.0
+

@@ -1,0 +1,113 @@
+{
+  "title": "Personalized Lab: Building a Game Leaderboard with NoSQL",
+  "topic": "Introduction to NoSQL Databases",
+  "difficulty": "medium",
+  "estimated_time": 60,
+  "sections": [
+    {
+      "concept": "NoSQL Database",
+      "title": "Setting Up Your First NoSQL Database",
+      "difficulty": "easy",
+      "scaffolding_level": "high",
+      "exercises": [
+        {
+          "type": "guided",
+          "hints": 3,
+          "description": "Install MongoDB and create a database for storing game player data",
+          "starter_code": "# Import required libraries\nfrom pymongo import MongoClient\n\n# TODO: Connect to MongoDB\nclient = None\n\n# TODO: Create a database called 'gaming_db'\ndb = None\n\n# TODO: Create a collection called 'players'\nplayers = None\n\nprint('Database setup complete!')",
+          "solution": "# Import required libraries\nfrom pymongo import MongoClient\n\n# Connect to MongoDB (default localhost:27017)\nclient = MongoClient('mongodb://localhost:27017/')\n\n# Create a database called 'gaming_db'\ndb = client['gaming_db']\n\n# Create a collection called 'players'\nplayers = db['players']\n\nprint('Database setup complete!')\nprint(f'Database: {db.name}')\nprint(f'Collections: {db.list_collection_names()}')",
+          "test_cases": [
+            {
+              "input": "client.list_database_names()",
+              "expected": "['gaming_db', ...]"
+            },
+            {
+              "input": "db.list_collection_names()",
+              "expected": "['players']"
+            }
+          ]
+        },
+        {
+          "type": "guided",
+          "hints": 2,
+          "description": "Insert player documents into the NoSQL database",
+          "starter_code": "# Sample player data\nplayer1 = {\n    'username': 'ProGamer123',\n    'level': 45,\n    'score': 12500,\n    'achievements': ['First Blood', 'Speed Demon']\n}\n\n# TODO: Insert player1 into the players collection\nresult = None\n\nprint(f'Inserted player with ID: {result.inserted_id}')",
+          "solution": "# Sample player data\nplayer1 = {\n    'username': 'ProGamer123',\n    'level': 45,\n    'score': 12500,\n    'achievements': ['First Blood', 'Speed Demon']\n}\n\n# Insert player1 into the players collection\nresult = players.insert_one(player1)\n\nprint(f'Inserted player with ID: {result.inserted_id}')\n\n# Verify insertion\nfound_player = players.find_one({'username': 'ProGamer123'})\nprint(f'Found player: {found_player}')",
+          "test_cases": [
+            {
+              "input": "players.count_documents({})",
+              "expected": "1"
+            },
+            {
+              "input": "players.find_one({'username': 'ProGamer123'})['level']",
+              "expected": "45"
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [
+        "Understand the basic structure of NoSQL databases",
+        "Learn how to connect to MongoDB",
+        "Practice inserting documents into collections"
+      ],
+      "background": "NoSQL databases like MongoDB store data in flexible, JSON-like documents instead of rigid tables. This makes them perfect for gaming applications where player data can vary widely - some players might have achievements, others might have inventory items, and the structure can evolve over time without requiring schema migrations."
+    },
+    {
+      "concept": "NoSQL Database",
+      "title": "Building a Dynamic Leaderboard System",
+      "difficulty": "medium",
+      "scaffolding_level": "medium",
+      "exercises": [
+        {
+          "type": "challenge",
+          "hints": 2,
+          "description": "Create a leaderboard query that ranks players by score and handles ties",
+          "starter_code": "# TODO: Query the top 10 players sorted by score (descending)\n# Handle ties by also sorting by level (descending)\n# Return only username, score, and level fields\n\ndef get_leaderboard(limit=10):\n    # Your code here\n    pass\n\n# Test your function\nleaderboard = get_leaderboard()\nfor rank, player in enumerate(leaderboard, 1):\n    print(f'{rank}. {player[\"username\"]}: {player[\"score\"]} points')",
+          "solution": "def get_leaderboard(limit=10):\n    \"\"\"\n    Get top players sorted by score and level.\n    \n    Args:\n        limit: Number of players to return\n    \n    Returns:\n        List of player documents\n    \"\"\"\n    leaderboard = players.find(\n        {},  # No filter - get all players\n        {'username': 1, 'score': 1, 'level': 1, '_id': 0}  # Projection\n    ).sort([\n        ('score', -1),  # Sort by score descending\n        ('level', -1)   # Then by level descending (for ties)\n    ]).limit(limit)\n    \n    return list(leaderboard)\n\n# Test the function\nleaderboard = get_leaderboard()\nfor rank, player in enumerate(leaderboard, 1):\n    print(f'{rank}. {player[\"username\"]}: {player[\"score\"]} points (Level {player[\"level\"]})')",
+          "test_cases": [
+            {
+              "input": "len(get_leaderboard())",
+              "expected": "10"
+            },
+            {
+              "input": "get_leaderboard()[0]['score'] >= get_leaderboard()[1]['score']",
+              "expected": "True"
+            }
+          ]
+        },
+        {
+          "type": "exploration",
+          "hints": 1,
+          "description": "Implement a real-time score update system with atomic operations",
+          "starter_code": "# TODO: Create a function that updates a player's score atomically\n# Use MongoDB's $inc operator to avoid race conditions\n# Also update the 'last_updated' timestamp\n\nfrom datetime import datetime\n\ndef update_player_score(username, points_earned):\n    # Your code here\n    pass\n\n# Test with multiple updates\nupdate_player_score('ProGamer123', 500)\nupdate_player_score('ProGamer123', 250)",
+          "solution": "from datetime import datetime\n\ndef update_player_score(username, points_earned):\n    \"\"\"\n    Atomically update a player's score.\n    \n    Args:\n        username: Player's username\n        points_earned: Points to add (can be negative)\n    \n    Returns:\n        Updated player document\n    \"\"\"\n    result = players.find_one_and_update(\n        {'username': username},  # Filter\n        {\n            '$inc': {'score': points_earned},  # Atomic increment\n            '$set': {'last_updated': datetime.now()}  # Update timestamp\n        },\n        return_document=True  # Return updated document\n    )\n    \n    if result:\n        print(f'Updated {username}: +{points_earned} points (Total: {result[\"score\"]})')\n    else:\n        print(f'Player {username} not found')\n    \n    return result\n\n# Test with multiple updates\nupdate_player_score('ProGamer123', 500)\nupdate_player_score('ProGamer123', 250)\n\n# Verify final score\nfinal_player = players.find_one({'username': 'ProGamer123'})\nprint(f'Final score: {final_player[\"score\"]}')",
+          "test_cases": [
+            {
+              "input": "update_player_score('ProGamer123', 100); players.find_one({'username': 'ProGamer123'})['score']",
+              "expected": "13350"
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [
+        "Master NoSQL query operations and sorting",
+        "Understand atomic operations in NoSQL databases",
+        "Learn to handle concurrent updates safely"
+      ],
+      "background": "In gaming applications, leaderboards need to update in real-time as thousands of players complete matches simultaneously. NoSQL databases excel at this because they support atomic operations that prevent race conditions, and their flexible schema allows you to add new fields (like achievements or stats) without downtime."
+    }
+  ],
+  "prerequisites": [
+    "Basic Python programming",
+    "Understanding of databases (SQL or NoSQL)",
+    "Familiarity with JSON data format"
+  ],
+  "technologies": [
+    "Python 3.8+",
+    "MongoDB 4.4+",
+    "PyMongo library",
+    "Jupyter Notebook"
+  ],
+  "personalization_context": "gaming"
+}
+

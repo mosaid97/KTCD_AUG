@@ -1,0 +1,90 @@
+{
+  "title": "Personalized Lab: CAP Theorem in Music Streaming",
+  "topic": "NoSQL Databases: CAP Theorem and BASE Transaction Model",
+  "difficulty": "hard",
+  "estimated_time": 90,
+  "sections": [
+    {
+      "concept": "CAP Theorem",
+      "title": "Understanding CAP Trade-offs in Music Streaming",
+      "difficulty": "medium",
+      "scaffolding_level": "high",
+      "exercises": [
+        {
+          "type": "guided",
+          "hints": 4,
+          "description": "Simulate a distributed music library system and observe CAP theorem trade-offs",
+          "starter_code": "# Simulate a distributed music streaming service\n# with multiple data centers (nodes)\n\nclass MusicNode:\n    def __init__(self, name, location):\n        self.name = name\n        self.location = location\n        self.playlist_data = {}\n        self.is_available = True\n    \n    def add_song_to_playlist(self, playlist_id, song):\n        # TODO: Implement adding song to playlist\n        pass\n    \n    def get_playlist(self, playlist_id):\n        # TODO: Implement getting playlist\n        pass\n\n# Create nodes in different regions\nnode_us = MusicNode('US-East', 'New York')\nnode_eu = MusicNode('EU-West', 'London')\nnode_asia = MusicNode('Asia-Pacific', 'Tokyo')\n\nprint('Music streaming nodes initialized')",
+          "solution": "class MusicNode:\n    def __init__(self, name, location):\n        self.name = name\n        self.location = location\n        self.playlist_data = {}\n        self.is_available = True\n        self.version = 0  # For versioning\n    \n    def add_song_to_playlist(self, playlist_id, song):\n        \"\"\"Add a song to a playlist (local write).\"\"\"\n        if not self.is_available:\n            raise Exception(f'Node {self.name} is unavailable')\n        \n        if playlist_id not in self.playlist_data:\n            self.playlist_data[playlist_id] = []\n        \n        self.playlist_data[playlist_id].append(song)\n        self.version += 1\n        \n        print(f'[{self.name}] Added \"{song}\" to playlist {playlist_id}')\n        return True\n    \n    def get_playlist(self, playlist_id):\n        \"\"\"Get a playlist (local read).\"\"\"\n        if not self.is_available:\n            raise Exception(f'Node {self.name} is unavailable')\n        \n        return self.playlist_data.get(playlist_id, [])\n    \n    def replicate_to(self, other_node, playlist_id):\n        \"\"\"Replicate playlist data to another node.\"\"\"\n        if not self.is_available or not other_node.is_available:\n            return False\n        \n        other_node.playlist_data[playlist_id] = self.playlist_data[playlist_id].copy()\n        print(f'[Replication] {self.name} -> {other_node.name}: playlist {playlist_id}')\n        return True\n\n# Create nodes in different regions\nnode_us = MusicNode('US-East', 'New York')\nnode_eu = MusicNode('EU-West', 'London')\nnode_asia = MusicNode('Asia-Pacific', 'Tokyo')\n\nprint('Music streaming nodes initialized')\nprint(f'Nodes: {node_us.name}, {node_eu.name}, {node_asia.name}')",
+          "test_cases": [
+            {
+              "input": "node_us.add_song_to_playlist('rock_classics', 'Bohemian Rhapsody'); len(node_us.get_playlist('rock_classics'))",
+              "expected": "1"
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [
+        "Understand the three properties of CAP theorem",
+        "Recognize trade-offs in distributed systems",
+        "Apply CAP concepts to real-world scenarios"
+      ],
+      "background": "The CAP theorem states that a distributed system can only guarantee two of three properties: Consistency (all nodes see the same data), Availability (system responds to requests), and Partition tolerance (system works despite network failures). Music streaming services like Spotify must carefully balance these trade-offs - should they prioritize showing you the exact same playlist across all devices (consistency) or ensure you can always access your music even if some servers are down (availability)?"
+    },
+    {
+      "concept": "CAP Theorem",
+      "title": "Implementing CP vs AP Systems",
+      "difficulty": "hard",
+      "scaffolding_level": "low",
+      "exercises": [
+        {
+          "type": "challenge",
+          "hints": 2,
+          "description": "Implement a CP (Consistency + Partition tolerance) system for critical playlist data",
+          "starter_code": "class CPMusicSystem:\n    \"\"\"Consistency + Partition tolerance system.\n    Sacrifices availability to maintain consistency.\n    \"\"\"\n    \n    def __init__(self, nodes):\n        self.nodes = nodes\n        self.quorum_size = len(nodes) // 2 + 1\n    \n    def write_with_quorum(self, playlist_id, song):\n        # TODO: Implement quorum-based write\n        # Must get acknowledgment from majority of nodes\n        # If quorum not reached, reject the write\n        pass\n    \n    def read_with_quorum(self, playlist_id):\n        # TODO: Implement quorum-based read\n        # Must read from majority of nodes\n        # Return most recent version\n        pass\n\n# Test the CP system\ncp_system = CPMusicSystem([node_us, node_eu, node_asia])\nprint(f'CP System initialized with quorum size: {cp_system.quorum_size}')",
+          "solution": "class CPMusicSystem:\n    \"\"\"Consistency + Partition tolerance system.\n    Sacrifices availability to maintain consistency.\n    \"\"\"\n    \n    def __init__(self, nodes):\n        self.nodes = nodes\n        self.quorum_size = len(nodes) // 2 + 1\n    \n    def write_with_quorum(self, playlist_id, song):\n        \"\"\"Write with quorum consensus.\"\"\"\n        successful_writes = 0\n        \n        for node in self.nodes:\n            try:\n                if node.is_available:\n                    node.add_song_to_playlist(playlist_id, song)\n                    successful_writes += 1\n            except Exception as e:\n                print(f'Write failed on {node.name}: {e}')\n        \n        if successful_writes >= self.quorum_size:\n            print(f'✅ Quorum write successful ({successful_writes}/{len(self.nodes)} nodes)')\n            return True\n        else:\n            print(f'❌ Quorum not reached ({successful_writes}/{self.quorum_size} required)')\n            # In a real CP system, we would rollback the writes\n            return False\n    \n    def read_with_quorum(self, playlist_id):\n        \"\"\"Read with quorum consensus.\"\"\"\n        responses = []\n        \n        for node in self.nodes:\n            try:\n                if node.is_available:\n                    playlist = node.get_playlist(playlist_id)\n                    responses.append((node.version, playlist))\n            except Exception as e:\n                print(f'Read failed on {node.name}: {e}')\n        \n        if len(responses) >= self.quorum_size:\n            # Return the most recent version (highest version number)\n            responses.sort(key=lambda x: x[0], reverse=True)\n            print(f'✅ Quorum read successful ({len(responses)}/{len(self.nodes)} nodes)')\n            return responses[0][1]\n        else:\n            print(f'❌ Quorum not reached ({len(responses)}/{self.quorum_size} required)')\n            return None\n\n# Test the CP system\ncp_system = CPMusicSystem([node_us, node_eu, node_asia])\nprint(f'CP System initialized with quorum size: {cp_system.quorum_size}')\n\n# Test write\ncp_system.write_with_quorum('favorites', 'Stairway to Heaven')\n\n# Test read\nplaylist = cp_system.read_with_quorum('favorites')\nprint(f'Playlist: {playlist}')",
+          "test_cases": [
+            {
+              "input": "cp_system.write_with_quorum('test', 'song1')",
+              "expected": "True"
+            }
+          ]
+        },
+        {
+          "type": "exploration",
+          "hints": 1,
+          "description": "Implement an AP (Availability + Partition tolerance) system and compare behavior",
+          "starter_code": "class APMusicSystem:\n    \"\"\"Availability + Partition tolerance system.\n    Sacrifices consistency for availability.\n    Uses eventual consistency.\n    \"\"\"\n    \n    def __init__(self, nodes):\n        self.nodes = nodes\n    \n    def write_available(self, playlist_id, song):\n        # TODO: Write to any available node\n        # Don't wait for replication\n        pass\n    \n    def read_available(self, playlist_id):\n        # TODO: Read from any available node\n        # May return stale data\n        pass\n    \n    def async_replicate(self):\n        # TODO: Background replication\n        # Eventually all nodes will be consistent\n        pass",
+          "solution": "import time\nimport threading\n\nclass APMusicSystem:\n    \"\"\"Availability + Partition tolerance system.\n    Sacrifices consistency for availability.\n    Uses eventual consistency.\n    \"\"\"\n    \n    def __init__(self, nodes):\n        self.nodes = nodes\n        self.replication_queue = []\n    \n    def write_available(self, playlist_id, song):\n        \"\"\"Write to first available node.\"\"\"\n        for node in self.nodes:\n            try:\n                if node.is_available:\n                    node.add_song_to_playlist(playlist_id, song)\n                    print(f'✅ Write successful to {node.name}')\n                    \n                    # Queue replication to other nodes\n                    for other_node in self.nodes:\n                        if other_node != node:\n                            self.replication_queue.append((node, other_node, playlist_id))\n                    \n                    return True\n            except Exception as e:\n                print(f'Write failed on {node.name}: {e}')\n                continue\n        \n        print('❌ No available nodes')\n        return False\n    \n    def read_available(self, playlist_id):\n        \"\"\"Read from first available node (may be stale).\"\"\"\n        for node in self.nodes:\n            try:\n                if node.is_available:\n                    playlist = node.get_playlist(playlist_id)\n                    print(f'✅ Read from {node.name} (may be stale)')\n                    return playlist\n            except Exception as e:\n                print(f'Read failed on {node.name}: {e}')\n                continue\n        \n        print('❌ No available nodes')\n        return None\n    \n    def async_replicate(self):\n        \"\"\"Background replication for eventual consistency.\"\"\"\n        replicated = 0\n        \n        while self.replication_queue:\n            source, target, playlist_id = self.replication_queue.pop(0)\n            try:\n                if source.replicate_to(target, playlist_id):\n                    replicated += 1\n            except Exception as e:\n                print(f'Replication failed: {e}')\n        \n        print(f'✅ Replicated {replicated} playlists')\n        return replicated\n\n# Test the AP system\nap_system = APMusicSystem([node_us, node_eu, node_asia])\nprint('AP System initialized')\n\n# Test write (fast, doesn't wait for replication)\nap_system.write_available('chill_vibes', 'Weightless')\n\n# Read immediately (may not be replicated yet)\nplaylist = ap_system.read_available('chill_vibes')\nprint(f'Immediate read: {playlist}')\n\n# Replicate in background\nap_system.async_replicate()\n\n# Now all nodes should have the data\nfor node in [node_us, node_eu, node_asia]:\n    print(f'{node.name}: {node.get_playlist(\"chill_vibes\")}')",
+          "test_cases": [
+            {
+              "input": "ap_system.write_available('test', 'song1')",
+              "expected": "True"
+            }
+          ]
+        }
+      ],
+      "learning_objectives": [
+        "Implement quorum-based consensus algorithms",
+        "Understand eventual consistency models",
+        "Compare CP vs AP system behaviors",
+        "Design systems based on CAP requirements"
+      ],
+      "background": "Real-world music streaming services typically choose AP (Availability + Partition tolerance) because users expect to access their playlists even during network issues. They use eventual consistency - your playlist might be slightly out of sync across devices for a few seconds, but it will eventually converge. Critical operations like payments would use CP to ensure consistency."
+    }
+  ],
+  "prerequisites": [
+    "Understanding of distributed systems",
+    "Basic knowledge of database replication",
+    "Python programming (intermediate level)",
+    "Familiarity with network concepts"
+  ],
+  "technologies": [
+    "Python 3.8+",
+    "Threading/Async programming",
+    "Distributed systems concepts",
+    "Jupyter Notebook"
+  ],
+  "personalization_context": "music"
+}
+
